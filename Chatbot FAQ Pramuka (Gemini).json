@@ -1,0 +1,141 @@
+{
+  "name": "Chatbot FAQ Pramuka (Gemini)",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "initialMessages": "Halo Saya Jarvis Asisten anda.\nada yang bisa saya bantu?",
+        "availableInChat": true,
+        "options": {}
+      },
+      "id": "4909b0c4-f906-4598-8b8d-76efa659f7b2",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        192
+      ],
+      "webhookId": "43ee10cd-4f67-485c-a726-989c46182a7e"
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "Peran:\nKamu adalah asisten FAQ Pramuka untuk siswa SMP.\n\nTugas:\nMenjawab pertanyaan seputar kepramukaan seperti simpul, pionering, sandi, SKU, SKK, regu, dan upacara.\n\nBatasan:\n- Jawaban maksimal 150 kata\n- Jangan mengarang\n- Jika tidak tahu, jawab jujur\n\nGaya:\n- Bahasa Indonesia santai tapi sopan\n- Mudah dipahami siswa\n\nContoh:\nQ: Apa itu SKU?\nA: SKU adalah Syarat Kecakapan Umum yang harus diselesaikan anggota Pramuka."
+        }
+      },
+      "id": "4711b6d8-ec50-4ecf-af00-b984cf7dd8dc",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1,
+      "position": [
+        0,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "maxOutputTokens": 1024,
+          "temperature": 0.7
+        }
+      },
+      "id": "7e93d614-6404-4547-a0b4-dbdafa66f7d5",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "22OjtLlXtCszxTgp",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "e512294c-3171-48e0-931e-59655157b1ff",
+      "name": "Simple Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1,
+      "position": [
+        48,
+        384
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "f42034b6-bad6-4a93-b6d6-faf1b36baf94",
+      "name": "Think Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1,
+      "position": [
+        224,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Chat Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Think Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "9637f1e4-6417-408e-85ac-a330cd5970c3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e3e0c68796d772a535a0b1b7100715b38bbab73a039f8b3ce25f20f97f1fb4e9"
+  },
+  "id": "LvcuivyfGGAQds3M",
+  "tags": []
+}
