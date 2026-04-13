@@ -1,0 +1,175 @@
+{
+  "name": "PAK Tugas 2 (Agen AI Chatbot Web dengan Tool Data di Google Sheets)",
+  "nodes": [
+    {
+      "parameters": {
+        "agent": "openAiFunctionsAgent",
+        "text": "={{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "Kamu adalah chatbot produk.\n\nGunakan tool Google Sheets untuk mencari data produk berdasarkan pertanyaan user.\n\nLangkah:\n1. Ambil data dari Google Sheets.\n2. Cari produk yang sesuai dengan pertanyaan user.\n3. Jika ditemukan, tampilkan:\n   - Nama Produk\n   - Deskripsi\n   - Harga\n4. Jika tidak ditemukan, jawab:\n   \"Maaf, data tidak ditemukan.\"\n\nJangan mengarang jawaban dan jangan menjawab tanpa menggunakan data dari tool."
+        }
+      },
+      "id": "a4ce7b3c-3dec-49dd-8d4c-68f798b10f7d",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1,
+      "position": [
+        64,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "chat_history"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        96,
+        800
+      ],
+      "id": "c537663f-4859-49da-9431-91b1f07dc299",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1jGupBkkhJcyoq00V4aEtjC9nz4PzT9UHj0GUVw641xA",
+          "mode": "list",
+          "cachedResultName": "n8n 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jGupBkkhJcyoq00V4aEtjC9nz4PzT9UHj0GUVw641xA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jGupBkkhJcyoq00V4aEtjC9nz4PzT9UHj0GUVw641xA/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        720
+      ],
+      "id": "aeaf3c00-4823-408e-997d-f1181cd4f9e2",
+      "name": "Get row(s) in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "aqGgpEp8gxXyWOAN",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -160,
+        512
+      ],
+      "id": "8650f81d-11e0-4104-acbf-db7678557a5b",
+      "name": "When chat message received",
+      "webhookId": "0c8570e1-ccba-424d-aab5-d952ea5343b0"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -16,
+        752
+      ],
+      "id": "5770717c-d97e-4858-99e7-9a5e9cb25bed",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "k1y60JvctxfTJCe7",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        []
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "40eb83cb-1093-43c0-8e52-837c5b2e5a08",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e3e0c68796d772a535a0b1b7100715b38bbab73a039f8b3ce25f20f97f1fb4e9"
+  },
+  "id": "ecfECjv6w139lYsQ",
+  "tags": []
+}
