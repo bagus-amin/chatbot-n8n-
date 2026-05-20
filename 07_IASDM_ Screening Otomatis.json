@@ -1,0 +1,241 @@
+{
+  "name": "07_IASDM_ Screening Otomatis",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Form Rekrutmen Posisi Manajemen Marketing",
+        "formDescription": "Harap isi form dibawah ini sesuai dengan ketentuan yang berlaku.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Nama Lengkap",
+              "placeholder": "Bagus Amin",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Pengalaman",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "< 1  tahun"
+                  },
+                  {
+                    "option": "1 - 3 tahun"
+                  },
+                  {
+                    "option": "3 > tahun"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Upload CV (PDF)",
+              "fieldType": "file",
+              "acceptFileTypes": "pdf",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email",
+              "fieldName": "Email",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "path": "rekrutment-mentor-nfa"
+        }
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "id": "572fd50c-3b27-4d59-be87-958149906b67",
+      "name": "n8n Form Trigger",
+      "webhookId": "a6457ef5-3729-4201-a392-b8b24b2e7363"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all(); // Ambil data input \n\nfor (let item of items) {\n  const binaryData = item.binary?.Upload_CV__PDF_;\n\n  if (binaryData) {\n    item.json.cv_base64 = binaryData.data; // Data base64 internal \n    item.json.fileName = binaryData.fileName;\n  }\n\n  // Tambahkan tanggal format Indonesia menggunakan Luxon \n  item.json.tanggal_input = DateTime.now().toFormat('dd-MM-yyyy HH:mm');\n}\n\nreturn items;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "bb73743f-c585-4dc4-9918-19957cf4ff5b",
+      "name": "Mengonversi ke Base64"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "Upload_CV__PDF_",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "85c926cb-cfe4-4d64-bfe6-59a7f756a26d",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Peran: Anda adalah Senior Technical Recruiter yang sangat teliti dan objektif. Tugas Anda adalah mengevaluasi teks CV kandidat di bawah ini untuk posisi Automation Engineer/Developer.\n\nKonteks CV Kandidat:\n\"\"\"\n{{ $json.text }}\n\"\"\"\n\nInstruksi Penilaian:\n1. Analisis pengalaman kerja, keahlian teknis (Hard Skills), dan latar belakang pendidikan.\n2. Identifikasi apakah kandidat memiliki pengalaman dengan tool seperti: n8n, Javascript, Python, SQL, atau API Integration.\n3. Berikan skor profesional dari 0-100.\n   - Skor < 50: Tidak relevan/Pemula.\n   - Skor 50-75: Menengah/Potensial.\n   - Skor > 75: Sangat Cocok/Senior.\n\nFormat Output (WAJIB JSON):\nJangan berikan basa-basi atau teks pembuka. HANYA berikan output JSON valid dengan struktur berikut:\n{\n  \"candidate_name\": \"Nama lengkap kandidat (jika ada)\",\n  \"years_of_experience\": \"Estimasi total tahun pengalaman (angka)\",\n  \"top_skills\": [\"Skill 1\", \"Skill 2\", \"Skill 3\", \"Skill 4\", \"Skill 5\"],\n  \"summary\": \"Ringkasan profil kandidat dalam 1 paragraf pendek (maksimal 30 kata) dalam Bahasa Indonesia.\",\n  \"strengths\": \"Poin kuat kandidat\",\n  \"weaknesses\": \"Kekurangan/hal yang perlu diklarifikasi\",\n  \"score\": 0,\n  \"hiring_recommendation\": \"YES / NO / MAYBE\"\n}\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        624,
+        0
+      ],
+      "id": "ca960f41-573a-4b17-bb64-cb309be34cf4",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nfor (let item of items) {\n  const aiResponseText = item.json.text; // Output teks dari LLM\n  \n  try {\n    // 1. Bersihkan formatting jika AI memberikan markdown ```json ... ```\n    const cleanJson = aiResponseText.replace(/```json|```/g, '').trim();\n    \n    // 2. Parse string menjadi Objek\n    const parsedData = JSON.parse(cleanJson);\n    \n    // 3. Masukkan ke item.json agar bisa dipanggil node selanjutnya\n    item.json.ai_name = parsedData.candidate_name;\n    item.json.ai_exp = parsedData.years_of_experience;\n    item.json.ai_skills = parsedData.top_skills.join(\", \"); // Array jadi string\n    item.json.ai_summary = parsedData.summary;\n    item.json.ai_score = parsedData.score;\n    item.json.ai_rec = parsedData.hiring_recommendation;\n    \n  } catch (error) {\n    // Fallback jika AI gagal generate JSON valid\n    item.json.error = \"Gagal parsing JSON dari AI\";\n    item.json.raw_output = aiResponseText;\n  }\n}\n\nreturn items;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        0
+      ],
+      "id": "44887d8d-000c-4ec3-824a-990ceeee4775",
+      "name": "Mengubah ke JSON Object"
+    },
+    {
+      "parameters": {
+        "chatId": "1956704662",
+        "text": "=Nama :  {{$json.ai_name}}\nSkills: {{ $json.ai_skills }}\nScore: {{$json.ai_score  }}\nSummary: {{ $json.ai_summary }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1168,
+        0
+      ],
+      "id": "3f267318-6048-4b88-b504-7fb405931834",
+      "name": "Send a text message",
+      "webhookId": "be45d08c-338e-4c00-a19b-68f341450d8a",
+      "credentials": {
+        "telegramApi": {
+          "id": "Myho0nbsTjYLiSJU",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-safeguard-20b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        560,
+        208
+      ],
+      "id": "b20978f4-442e-4154-a6a0-b5a971d6c17c",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "NbvVlwcM3UdEwzMw",
+          "name": "Groq account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "n8n Form Trigger": {
+      "main": [
+        [
+          {
+            "node": "Mengonversi ke Base64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mengonversi ke Base64": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Mengubah ke JSON Object",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mengubah ke JSON Object": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "2b58b06f-3315-4853-9955-ab25244e1b29",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fb82aa77436d5fd3f315d700cbfc813e9b57825c6a02e59dd7f1de199f42e669"
+  },
+  "id": "kVReqdFKPGtrWX0Z",
+  "tags": []
+}

@@ -1,0 +1,329 @@
+{
+  "name": "Tugas 2 IAMS_Bam",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "076f7593-361d-47c2-8c76-af710bc25a24",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        368,
+        0
+      ],
+      "id": "19de93e7-1035-4fa5-b874-140987fab0fb",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      id: 101,\n      candidate_name: \"Lee Jihoon\",\n      email: \"budi.devops@email.test\",\n      position: \"Senior DevOps Engineer\",\n      claimed_skills: \"Kubernetes, Helm, Terraform\",\n      past_company_type: \"Agensi Digital Marketing (Non-Tech Product)\",\n      years_experience: 3,\n      interview_status: \"Scheduled\"\n    }\n  },\n  {\n    json: {\n      id: 102,\n      candidate_name: \"Park Jonggun\",\n      email: \"siti.backend@email.test\",\n      position: \"Backend Engineer\",\n      claimed_skills: \"Microservices, Kubernetes, GoLang\",\n      past_company_type: \"Bank Konvensional (Legacy System)\",\n      years_experience: 5,\n      interview_status: \"Scheduled\"\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        0
+      ],
+      "id": "19256eee-4c19-498f-a0b9-d73baba9cda3",
+      "name": "Data Dummy"
+    },
+    {
+      "parameters": {
+        "jsCode": "for (const item of items) {\n  const candidate = item.json;\n  const role = candidate.position || \"Software Engineer\";\n  const skills = candidate.claimed_skills;\n  const background = candidate.past_company_type;\n  \n  const systemPrompt = `\n  Role: You are a Senior Technical Interviewer for a ${role} position. \n  Your goal is to validate the technical depth of a candidate named ${candidate.candidate_name}.\n  \n  CONTEXT:\n  The candidate claims expertise in: ${skills}.\n  However, their background is from: ${background}.\n  \n  TASK:\n  Generate 5 advanced technical interview questions (Studi Kasus) to verify if they truly understand the internal workings of the tech stack or just surface-level knowledge.\n  Focus on troubleshooting scenarios and architectural trade-offs.\n  \n  IMPORTANT: \n  - The questions must be challenging but professional.\n  - Provide the output in INDONESIAN language.\n  \n  OUTPUT FORMAT (Markdown):\n  1. **Topik**: [Nama Topik]\n     - **Pertanyaan**: [Studi Kasus Spesifik]\n     - **Ekspektasi Jawaban Senior**: [Poin Kunci]\n  `;\n\n  item.json.llm_prompt = systemPrompt;\n}\n\nreturn items;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        16
+      ],
+      "id": "41c996f4-bb12-47e5-b1ea-5519e0bc752e",
+      "name": "Prompt Builder"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.llm_prompt }}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        736,
+        16
+      ],
+      "id": "5282b631-ab0e-456b-a1da-495a9c41b124",
+      "name": "Generate Pertanyaan"
+    },
+    {
+      "parameters": {
+        "chatId": "1956704662",
+        "text": "=Nama Kandidat:  {{ $('Data Dummy').item.json.candidate_name }}\n{{ $json.text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1312,
+        16
+      ],
+      "id": "945a9177-c184-4735-9f43-bee0218bfe92",
+      "name": "Kirim Hasil Pertanyaan",
+      "webhookId": "53ea8aa5-91dc-4d11-80d3-06ae2b3efa09",
+      "credentials": {
+        "telegramApi": {
+          "id": "Myho0nbsTjYLiSJU",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiQuestion = items[0].json.text; \n\n\nconst candidateName = $('Loop Over Items').item.json.candidate_name;\n\nlet mockAnswer = \"\";\n\nif (candidateName.includes(\"Budi\")) {\n  mockAnswer = \"Untuk masalah CrashLoopBackOff, saya akan cek logs pod pakai kubectl logs, lalu describe pod untuk lihat events. Biasanya karena configmap salah atau app panic saat startup.\";\n} else {\n  mockAnswer = \"Saya biasanya restart servernya pak. Kalau masih error saya install ulang Kubernetesnya.\";\n}\n\nreturn [\n  {\n    json: {\n      question: aiQuestion,\n      candidate_answer: mockAnswer,\n      candidate_name: candidateName\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        208
+      ],
+      "id": "9525ce60-09ef-4906-b7ff-49cc7148bd01",
+      "name": "Mock Jawaban"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mengambil data dari node Mock Jawaban atau node sebelumnya\nconst data = items[0].json;\n\n// Menyusun teks instruksi evaluasi yang sangat detail untuk AI\nconst promptEvaluasi = `\nROLE: Anda adalah seorang Manajer Perekrutan Senior[cite: 82].\nTASK: Evaluasi jawaban kandidat berdasarkan pertanyaan teknis yang diberikan[cite: 81].\n\nDATA:\n- Nama Kandidat: ${data.candidate_name}\n- Pertanyaan: \"${data.question}\"\n- Jawaban Kandidat: \"${data.candidate_answer}\"\n\nINSTRUKSI:\nBerikan skor (0-100) dan analisis singkat berdasarkan kriteria berikut[cite: 83]:\n- Jika jawaban menunjukkan langkah pemecahan masalah yang mendalam (log, event, root cause), berikan skor TINGGI[cite: 83].\n- Jika jawaban generik (restart server, instal ulang), berikan skor RENDAH[cite: 83].\n\nFORMAT OUTPUT (Harus sesuai agar mudah dibaca di Telegram)[cite: 85]:\n**Penilaian untuk ${data.candidate_name}**\n--------------------------\n🎯 **Skor:** [Isi Skor]\n💡 **Analisa:** [Isi 1 kalimat analisa]\n🚩 **Keputusan:** [LOLOS / GAGAL]\n`;\n\nreturn [{\n  json: {\n    eval_prompt_text: promptEvaluasi\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        208
+      ],
+      "id": "6559c837-8893-4205-acf0-eb0d2fe1b679",
+      "name": "Evaluator"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.eval_prompt_text }}.",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1456,
+        368
+      ],
+      "id": "a8b930e2-d001-44e9-b873-b2557b8b7642",
+      "name": "Evaluator Prompt"
+    },
+    {
+      "parameters": {
+        "chatId": "1956704662",
+        "text": "=Nama Kandidat:  {{ $('Data Dummy').item.json.candidate_name }}\n{{ $json.text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1824,
+        368
+      ],
+      "id": "a2abc91c-dc63-4c23-8bd8-66435a4a4530",
+      "name": "Kirim Hasil Evaluator",
+      "webhookId": "55d3fae1-9d23-4a03-a4ff-e34a9bba26bf",
+      "credentials": {
+        "telegramApi": {
+          "id": "Myho0nbsTjYLiSJU",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $json.text;\nconst maxLength = 4000;\n\nconst paragraphs = text.split('\\n');\nlet current = '';\nconst result = [];\n\nfor (const p of paragraphs) {\n  if ((current + p).length > maxLength) {\n    result.push({ json: { chunk: current } });\n    current = '';\n  }\n  current += p + '\\n';\n}\n\nif (current) {\n  result.push({ json: { chunk: current } });\n}\n\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        16
+      ],
+      "id": "61557bee-f869-45b9-b59f-03e3bdc93226",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        864,
+        368
+      ],
+      "id": "afdbccce-af10-426f-a8be-8b6c258ba5cf",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "yxBF8nbEmcFdtMCC",
+          "name": "Groq account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Data Dummy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Prompt Builder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Dummy": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt Builder": {
+      "main": [
+        [
+          {
+            "node": "Generate Pertanyaan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Pertanyaan": {
+      "main": [
+        [
+          {
+            "node": "Mock Jawaban",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock Jawaban": {
+      "main": [
+        [
+          {
+            "node": "Evaluator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluator": {
+      "main": [
+        [
+          {
+            "node": "Evaluator Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluator Prompt": {
+      "main": [
+        [
+          {
+            "node": "Kirim Hasil Evaluator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Kirim Hasil Pertanyaan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Pertanyaan",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Evaluator Prompt",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "0cd7ad2c-a321-4a63-895c-473160917ef8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fb82aa77436d5fd3f315d700cbfc813e9b57825c6a02e59dd7f1de199f42e669"
+  },
+  "id": "hlbgUd0F50h3sevO",
+  "tags": []
+}

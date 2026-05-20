@@ -1,0 +1,247 @@
+{
+  "name": "Tugas 3 IAMS_Generate CV",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "Convert from PDF",
+        "url": "={{ $json.webContentLink }}",
+        "advancedOptions": {}
+      },
+      "type": "n8n-nodes-pdfco.PDFco Api",
+      "typeVersion": 1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "37b2d76e-995b-4b0e-9930-e767860441fd",
+      "name": "PDFco Api",
+      "credentials": {
+        "pdfcoApi": {
+          "id": "4dGcQ8OoN66Fzrdj",
+          "name": "PDF.co account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "1956704662",
+        "text": "={{ $json.telegram_text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1392,
+        0
+      ],
+      "id": "7386f74c-a3b8-4b87-80a8-a3d1b30a21be",
+      "name": "Send a text message",
+      "webhookId": "f61bf722-8ac1-492a-b825-03d791a152a6",
+      "credentials": {
+        "telegramApi": {
+          "id": "Myho0nbsTjYLiSJU",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let html = $json.body || $json.data || $json.html || \"\";\n\n// 1. Remove scripts, styles, metadata\nhtml = html\n  .replace(/<script[\\s\\S]*?<\\/script>/gi, '')\n  .replace(/<style[\\s\\S]*?<\\/style>/gi, '')\n  .replace(/<meta[\\s\\S]*?>/gi, '')\n  .replace(/<head[\\s\\S]*?<\\/head>/gi, '');\n\n// 2. Convert <li> to dash bullet text\nhtml = html\n  .replace(/<li[^>]*>/gi, '\\n- ')\n  .replace(/<\\/li>/gi, '');\n\n// 3. Convert paragraph & breaks to newline\nhtml = html\n  .replace(/<\\/p>/gi, '\\n')\n  .replace(/<br\\s*\\/?>/gi, '\\n')\n  .replace(/<\\/div>/gi, '\\n');\n\n// 4. Remove all other HTML tags\nhtml = html.replace(/<[^>]+>/g, ' ');\n\n// 5. Remove page numbers often found in PDF → HTML\nhtml = html.replace(/Page \\d+ of \\d+/gi, '');\nhtml = html.replace(/\\bPage\\s*\\d+\\b/gi, '');\nhtml = html.replace(/^\\s*\\d+\\s*$/gm, ''); // single-number lines\n\n// 6. Remove repeated header/footer lines (common in PDFs)\nhtml = html.replace(/Curriculum Vitae|Resume|CV/gi, (m) => `\\n${m}\\n`); \nhtml = html.replace(/©.*\\n/gi, '');\nhtml = html.replace(/All rights reserved.*/gi, '');\n\n// 7. Decode HTML entities\nhtml = html\n  .replace(/&nbsp;/g, ' ')\n  .replace(/&amp;/g, '&')\n  .replace(/&lt;/g, '<')\n  .replace(/&gt;/g, '>')\n  .replace(/&quot;/g, '\"')\n  .replace(/&#39;/g, \"'\");\n\n// 8. Normalize whitespace & line breaks\nhtml = html\n  .replace(/\\n\\s*\\n\\s*\\n+/g, '\\n\\n')\n  .replace(/[ \\t]+/g, ' ')\n  .replace(/\\s+\\n/g, '\\n')\n  .replace(/\\n\\s+/g, '\\n')\n  .trim();\n\nreturn [{\n  json: {\n    clean_text: html\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "977ad18b-1416-4e78-8c51-133397e717ad",
+      "name": "Clean HTML"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Anda adalah Penganalisis CV yang ahli dalam merekrut Tenaga Pengajar IT (Instruktur/Trainer).\n\nAnalisis teks di bawah dan hasilkan HANYA output JSON dengan struktur yang SAMA PERSIS seperti ini:\n\n{\n  \"it_keywords\": [],\n  \"teaching_keywords\": [],\n  \"category\": {\n    \"devops\": [],\n    \"backend\": [],\n    \"frontend\": [],\n    \"cybersecurity\": [],\n    \"cloud\": [],\n    \"networking\": []\n  },\n  \"it_difficulty_score\": \"\",\n  \"teaching_score\": \"\",\n  \"summary\": \"\"\n}\n\nAturan Wajib:\n- \"it_keywords\": Maksimal 10 istilah teknis IT terkuat (cth: \"Python\", \"Kubernetes\").\n- \"teaching_keywords\": Maksimal 5 istilah terkait mengajar (cth: \"mengajar\", \"dosen\", \"trainer\", \"pelatihan\", \"instruktur\").\n- \"category\": Isi kategori IT berdasarkan \"it_keywords\" atau pengalaman kerja.\n- \"it_difficulty_score\": Skor 1-10 untuk kompleksitas teknis IT kandidat.\n- \"teaching_score\": Skor 1-10 untuk pengalaman mengajar/melatih kandidat.\n- \"summary\": Ringkasan 2 kalimat yang menggabungkan kemampuan teknis DAN pengalaman mengajarnya.\n- Jika tidak ada data untuk sebuah array (seperti \"teaching_keywords\"), gunakan array kosong []. Jangan menebak.\n\nSekarang analisis teks ini:\n\n{{ $json.clean_text }}\n\nOutput harus menggunakan Bahasa Indonesia.\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        624,
+        0
+      ],
+      "id": "49c0397a-f6d8-4f0f-abd0-7fb8038ebbcd",
+      "name": "Skoring Kandidat"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Ambil teks mentah dari Gemini\nconst rawText = $json.text;\n\n// 2. Temukan string JSON di dalam ```json ... ```\nconst jsonMatch = rawText.match(/\\{([\\s\\S]*)\\}/);\n\n// 3. Cek jika JSON ditemukan\nif (!jsonMatch || !jsonMatch[0]) {\n  throw new Error(\"Tidak dapat menemukan JSON dalam output AI.\");\n}\n\nconst jsonString = jsonMatch[0];\n\n// 4. Ubah string menjadi objek JSON yang sesungguhnya\ntry {\n  const jsonData = JSON.parse(jsonString);\n  // Kembalikan objek JSON agar node berikutnya bisa pakai\n  return [{ json: jsonData }];\n} catch (error) {\n  throw new Error(\"Gagal mem-parsing JSON: \" + error.message);\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        0
+      ],
+      "id": "729e85d9-fd9a-48ab-8af5-db2daaa4e3ae",
+      "name": "Parse JSON from AI"
+    },
+    {
+      "parameters": {
+        "jsCode": "// $json sekarang berisi data JSON yang sudah bersih\nconst data = $json;\n\n// Helper function (dari kode lama Anda, ini bagus)\nconst safeArray = (x) =>\n  Array.isArray(x) && x.length > 0 ? x.join(\", \") : \"-\";\n\nconst cat = data.category || {};\n\n// Buat pesan Telegram dengan field-field BARU\nconst msg = `\n📌 *Keyword IT*\n${safeArray(data.it_keywords)}\n\n🎓 *Keyword Mengajar*\n${safeArray(data.teaching_keywords)}\n\n📂 *Kategori*\nDevOps: ${safeArray(cat.devops)}\nBackend: ${safeArray(cat.backend)}\nFrontend: ${safeArray(cat.frontend)}\nSecurity: ${safeArray(cat.cybersecurity || cat.security)}\nCloud: ${safeArray(cat.cloud)}\nNetworking: ${safeArray(cat.networking)}\n\n⭐ *Skor Teknis IT:* ${data.it_difficulty_score || \"-\"}\n⭐ *Skor Mengajar:* ${data.teaching_score || \"-\"}\n\n📝 *Ringkasan:*\n${data.summary || \"-\"}\n`;\n\nreturn [{\n  json: { telegram_text: msg }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        0
+      ],
+      "id": "8d7e4f18-96d2-4545-b6bc-15dafb874b3a",
+      "name": "Format Output untuk Telegram"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        624,
+        192
+      ],
+      "id": "ea7586a1-46de-4b7d-af4f-497232d018ab",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "QE0FZvvkCUIqd032",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFile",
+        "fileToWatch": {
+          "__rl": true,
+          "value": "1957hQm_5fJzVlpVR1U_0_jxx5wbiMuuD",
+          "mode": "list",
+          "cachedResultName": "CV Bagus Amin Muzizat.pdf",
+          "cachedResultUrl": "https://drive.google.com/file/d/1957hQm_5fJzVlpVR1U_0_jxx5wbiMuuD/view?usp=drivesdk"
+        }
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "6540279e-de36-447d-87d7-07492a0c8cb7",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "BgtWed8NHV7EsrJd",
+          "name": "Google Drive account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "PDFco Api": {
+      "main": [
+        [
+          {
+            "node": "Clean HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean HTML": {
+      "main": [
+        [
+          {
+            "node": "Skoring Kandidat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skoring Kandidat": {
+      "main": [
+        [
+          {
+            "node": "Parse JSON from AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse JSON from AI": {
+      "main": [
+        [
+          {
+            "node": "Format Output untuk Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Output untuk Telegram": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Skoring Kandidat",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "PDFco Api",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "45e47d2b-f3f2-4d0b-8ace-2fddd9345b5e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fb82aa77436d5fd3f315d700cbfc813e9b57825c6a02e59dd7f1de199f42e669"
+  },
+  "id": "t901WzWemVu1DpqX",
+  "tags": []
+}
